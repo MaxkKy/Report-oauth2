@@ -2,7 +2,6 @@ import streamlit as st
 import sqlite3
 import qrcode
 import io
-import os
 
 # --- 1. การตั้งค่าพื้นฐาน (Config) ---
 ADMIN_EMAIL = "aphisit.k65@rsu.ac.th" # อีเมลแอดมินหลัก
@@ -31,33 +30,33 @@ st.title("🛡️ ระบบจัดการหลังบ้าน (Admin 
 if "user_email" not in st.session_state:
     st.subheader("กรุณาเข้าสู่ระบบ")
     
-    # หน้ากาก Login แบบฟอร์มเดียว
-    with st.center(): # จัดให้อยู่กลางหน้าจอ (จำลองด้วย columns)
-        _, col_mid, _ = st.columns([1, 2, 1])
-        with col_mid:
-            with st.form("login_form"):
-                email_input = st.text_input("Gmail (อีเมล)").lower().strip()
-                pass_input = st.text_input("Password (รหัสผ่าน)", type="password")
-                submit = st.form_submit_button("เข้าสู่ระบบ")
-                
-                if submit:
-                    # 1. เช็คแอดมินหลักจากโค้ด
-                    if email_input == ADMIN_EMAIL.lower() and pass_input == ADMIN_PASSWORD:
+    # แก้ไขแล้ว: ใช้แค่ columns ในการจัดให้อยู่กึ่งกลาง
+    _, col_mid, _ = st.columns([1, 2, 1])
+    
+    with col_mid:
+        with st.form("login_form"):
+            email_input = st.text_input("Gmail (อีเมล)").lower().strip()
+            pass_input = st.text_input("Password (รหัสผ่าน)", type="password")
+            submit = st.form_submit_button("เข้าสู่ระบบ")
+            
+            if submit:
+                # 1. เช็คแอดมินหลักจากโค้ด
+                if email_input == ADMIN_EMAIL.lower() and pass_input == ADMIN_PASSWORD:
+                    st.session_state.user_email = email_input
+                    st.rerun()
+                else:
+                    # 2. เช็คพนักงานคนอื่นในฐานข้อมูล (ใช้รหัสผ่านกลาง 1234)
+                    conn = sqlite3.connect('repairs.db')
+                    c = conn.cursor()
+                    c.execute("SELECT email FROM users WHERE LOWER(email)=?", (email_input,))
+                    db_user = c.fetchone()
+                    conn.close()
+                    
+                    if db_user and pass_input == "1234":
                         st.session_state.user_email = email_input
                         st.rerun()
                     else:
-                        # 2. เช็คพนักงานคนอื่นในฐานข้อมูล (ใช้รหัสผ่านกลาง 1234)
-                        conn = sqlite3.connect('repairs.db')
-                        c = conn.cursor()
-                        c.execute("SELECT email FROM users WHERE LOWER(email)=?", (email_input,))
-                        db_user = c.fetchone()
-                        conn.close()
-                        
-                        if db_user and pass_input == "1234":
-                            st.session_state.user_email = email_input
-                            st.rerun()
-                        else:
-                            st.error("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+                        st.error("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
 
 else:
     # --- เมื่อ Login สำเร็จแล้ว ---
