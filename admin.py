@@ -9,6 +9,7 @@ import os
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8501") # เพิ่มบรรทัดนี้   
 ADMIN_EMAIL = "aphisit.k65@rsu.ac.th" # อีเมลของคุณจะได้สิทธิ์ Admin อัตโนมัติ
 SCOPE = "email profile"
 
@@ -110,7 +111,7 @@ else:
 
         elif menu == "สร้าง QR Code":
             st.header("สร้าง QR Code สำหรับแจ้งซ่อม")
-            url = st.text_input("ใส่ลิงก์เว็บของคุณ:", "http://localhost:8501")
+            url = st.text_input("ใส่ลิงก์เว็บของคุณ:", "REDIRECT_URI")
             if st.button("Generate QR"):
                 img = qrcode.make(url)
                 buf = io.BytesIO()
