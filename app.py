@@ -8,7 +8,7 @@ import os
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app/", "http://localhost:8501") # เพิ่มบรรทัดนี้
+REDIRECT_URI = os.getenv("https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app", "http://localhost:8501") # เพิ่มบรรทัดนี้
 ADMIN_EMAIL = "aphisit.k65@rsu.ac.th"  # เปลี่ยนเป็นอีเมลของคุณเพื่อใช้สิทธิ์ Admin
 
 SCOPE = "email profile https://www.googleapis.com/auth/gmail.send"

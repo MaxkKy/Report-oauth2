@@ -9,7 +9,7 @@ import os
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8501") # เพิ่มบรรทัดนี้   
+REDIRECT_URI = os.getenv("https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app/", "http://localhost:8501") # เพิ่มบรรทัดนี้   
 ADMIN_EMAIL = "aphisit.k65@rsu.ac.th" # อีเมลของคุณจะได้สิทธิ์ Admin อัตโนมัติ
 SCOPE = "email profile"
 
