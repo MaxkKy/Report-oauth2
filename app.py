@@ -5,11 +5,13 @@ import base64
 import sqlite3
 from email.message import EmailMessage
 import os
+
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+# ดึง REDIRECT_URI จาก env หรือใช้ค่าคงที่ที่คุณตั้งไว้
 REDIRECT_URI = "https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app"
-ADMIN_EMAIL = "aphisit.k65@rsu.ac.th"  # เปลี่ยนเป็นอีเมลของคุณเพื่อใช้สิทธิ์ Admin
+ADMIN_EMAIL = "aphisit.k65@rsu.ac.th" 
 
 SCOPE = "email profile https://www.googleapis.com/auth/gmail.send"
 
@@ -58,8 +60,8 @@ else:
     
     st.sidebar.write(f"Logged in: **{user_email}**")
     
-    # --- ระบบ Tabs ---
-    tabs = st.tabs(["📢 แจ้งซ่อม", "📋 สถานะงานของฉัน", "🛠️ แอดมิน (จัดการงาน)"])
+    # --- ระบบ Tabs (ปรับเหลือ 2 แท็บ) ---
+    tabs = st.tabs(["📢 แจ้งซ่อม", "📋 สถานะงานของฉัน"])
     
     # แท็บ 1: แจ้งซ่อม
     with tabs[0]:
@@ -87,30 +89,15 @@ else:
         conn = sqlite3.connect('repairs.db')
         c = conn.cursor()
         c.execute("SELECT room, device, status FROM repairs WHERE user_email = ? ORDER BY id DESC", (user_email,))
-        for row in c.fetchall():
-            st.write(f"ห้อง: {row[0]} | อุปกรณ์: {row[1]} | สถานะ: **{row[2]}**")
+        data = c.fetchall()
+        if data:
+            for row in data:
+                st.write(f"ห้อง: {row[0]} | อุปกรณ์: {row[1]} | สถานะ: **{row[2]}**")
+        else:
+            st.info("คุณยังไม่มีประวัติการแจ้งซ่อม")
         conn.close()
 
-    # แท็บ 3: หน้า Admin
-    with tabs[2]:
-        if user_email == ADMIN_EMAIL:
-            st.header("จัดการรายการแจ้งซ่อม (Admin)")
-            conn = sqlite3.connect('repairs.db')
-            c = conn.cursor()
-            c.execute("SELECT id, user_email, room, device, status FROM repairs ORDER BY id DESC")
-            repairs = c.fetchall()
-            for r in repairs:
-                col1, col2 = st.columns([3, 1])
-                col1.write(f"**ห้อง:** {r[2]} | **อุปกร์:** {r[3]} | **สถานะ:** {r[4]}")
-                if r[4] == "รอดำเนินการ":
-                    if col2.button("✅ เสร็จสิ้น", key=f"upd_{r[0]}"):
-                        c.execute("UPDATE repairs SET status = 'เสร็จสิ้น' WHERE id = ?", (r[0],))
-                        conn.commit()
-                        st.rerun()
-            conn.close()
-        else:
-            st.warning("คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (เฉพาะ Admin เท่านั้น)")
-
+    # ปุ่ม Logout
     if st.sidebar.button("Logout"):
         del st.session_state.user
         st.rerun()
