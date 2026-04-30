@@ -9,7 +9,7 @@ import os
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# แก้ไขบรรทัดนี้ เอา os.getenv ออกให้เหลือแค่ URL สตริงธรรมดา
+# ใส่ URL ตรงๆ ห้ามใช้ os.getenv ครอบแบบเดิม
 REDIRECT_URI = "https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app" 
 ADMIN_EMAIL = "aphisit.k65@rsu.ac.th"  
 
@@ -20,64 +20,47 @@ oauth = OAuth2Component(CLIENT_ID, CLIENT_SECRET,
                         "https://oauth2.googleapis.com/token", 
                         "https://oauth2.googleapis.com/oauth2/v1/revoke")
 
-# --- 2. ตั้งค่า Database ---
 def init_db():
     conn = sqlite3.connect('repairs.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS repairs 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT, room TEXT, 
                   device TEXT, detail TEXT, status TEXT)''')
-    # เพิ่มตาราง users เผื่อไว้ให้ app.py รู้จักด้วย
-    c.execute('''CREATE TABLE IF NOT EXISTS users 
-                 (email TEXT PRIMARY KEY, role TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, role TEXT)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- 3. ฟังก์ชันส่งเมล ---
-def send_email_via_gmail_api(access_token, room, message_content):
-    url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
-    msg = EmailMessage()
-    msg.set_content(message_content)
-    msg['Subject'] = f"🚨 แจ้งซ่อม: {room}"
-    msg['To'] = ADMIN_EMAIL
-    raw_msg = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
-    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    response = requests.post(url, headers=headers, json={"raw": raw_msg})
-    return response.status_code == 200
-
-# --- 4. หน้าจอหลัก ---
+# --- 2. หน้าจอหลัก ---
 if "user" not in st.session_state:
     st.title("ระบบแจ้งซ่อมห้องเรียน")
-    # แก้ไขจุดนี้ เอาคำว่า redirect_uri= ออกจากเครื่องหมายคำพูด
+    # แก้ไขจุดที่ผิด: redirect_uri ต้องเท่ากับตัวแปร REDIRECT_URI โดยไม่มี "" ครอบ
     result = oauth.authorize_button(name="Login with Google", icon="https://www.google.com/favicon.ico", 
                                     redirect_uri=REDIRECT_URI, scope=SCOPE)
     if result:
         st.session_state.user = result
         st.rerun()
 else:
-    token = st.session_state.user.get("token", {}).get("access_token")
+    token = st.session_token = st.session_state.user.get("token", {}).get("access_token")
     user_info = requests.get("https://www.googleapis.com/oauth2/v1/userinfo", 
                              headers={"Authorization": f"Bearer {token}"}).json()
-    user_email = user_info.get('email')
+    user_email = user_info.get('email').lower().strip() # ล้างค่าว่างและตัวพิมพ์ใหญ่
     
     st.sidebar.write(f"Logged in: **{user_email}**")
     
-    # ดึงสิทธิ์จาก Database มาตรวจสอบด้วย
+    # ดึงสิทธิ์จาก Database
     conn = sqlite3.connect('repairs.db')
     c = conn.cursor()
-    c.execute("SELECT role FROM users WHERE email = ?", (user_email,))
-    user_role_db = c.fetchone()
+    c.execute("SELECT role FROM users WHERE LOWER(email) = ?", (user_email,))
+    db_res = c.fetchone()
     conn.close()
     
-    # เป็นแอดมินถ้าอีเมลตรงกับตัวแปรหลัก หรือ มี role='admin' ใน Database
-    is_admin = (user_email == ADMIN_EMAIL) or (user_role_db and user_role_db[0] == 'admin')
+    # เช็คว่าเป็น Admin หรือไม่
+    is_admin = (user_email == ADMIN_EMAIL.lower()) or (db_res and db_res[0] == 'admin')
 
-    # --- ระบบ Tabs ---
     tabs = st.tabs(["📢 แจ้งซ่อม", "📋 สถานะงานของฉัน", "🛠️ แอดมิน (จัดการงาน)"])
     
-    # แท็บ 1: แจ้งซ่อม
     with tabs[0]:
         st.header("แบบฟอร์มแจ้งซ่อม")
         with st.form("repair_form"):
@@ -91,11 +74,8 @@ else:
                           (user_email, room, device, detail, "รอดำเนินการ"))
                 conn.commit()
                 conn.close()
-                content = f"ผู้แจ้ง: {user_email}\nห้อง: {room}\nอุปกรณ์: {device}\nรายละเอียด: {detail}"
-                send_email_via_gmail_api(token, room, content)
-                st.success("บันทึกข้อมูลและส่งอีเมลแจ้งแอดมินแล้ว!")
+                st.success("บันทึกข้อมูลเรียบร้อย!")
 
-    # แท็บ 2: ดูสถานะของตัวเอง
     with tabs[1]:
         st.header("สถานะรายการของคุณ")
         conn = sqlite3.connect('repairs.db')
@@ -105,26 +85,27 @@ else:
             st.write(f"ห้อง: {row[0]} | อุปกรณ์: {row[1]} | สถานะ: **{row[2]}**")
         conn.close()
 
-    # แท็บ 3: หน้า Admin
     with tabs[2]:
-        if is_admin: # แก้ให้ใช้ตัวแปร is_admin ที่ดึงจาก Database ด้วย
+        if is_admin:
             st.header("จัดการรายการแจ้งซ่อม (Admin)")
             conn = sqlite3.connect('repairs.db')
             c = conn.cursor()
-            c.execute("SELECT id, user_email, room, device, status FROM repairs ORDER BY id DESC")
+            # ดึงข้อมูลทุก Column
+            c.execute("SELECT id, user_email, room, device, detail, status FROM repairs ORDER BY id DESC")
             repairs = c.fetchall()
             for r in repairs:
-                col1, col2 = st.columns([3, 1])
-                # แก้ไขเพิ่ม r[1] (user_email) เข้ามาแสดงผล เพื่อให้รู้ว่าใครแจ้ง
-                col1.write(f"**ผู้แจ้ง:** {r[1]} | **ห้อง:** {r[2]} | **อุปกร์:** {r[3]} | **สถานะ:** {r[4]}")
-                if r[4] == "รอดำเนินการ":
-                    if col2.button("✅ เสร็จสิ้น", key=f"upd_{r[0]}"):
-                        c.execute("UPDATE repairs SET status = 'เสร็จสิ้น' WHERE id = ?", (r[0],))
-                        conn.commit()
-                        st.rerun()
+                with st.expander(f"ID: {r[0]} | ห้อง: {r[2]} | สถานะ: {r[5]}"):
+                    st.write(f"**ผู้แจ้ง:** {r[1]}")
+                    st.write(f"**อุปกรณ์:** {r[3]}")
+                    st.write(f"**รายละเอียด:** {r[4]}")
+                    if r[5] == "รอดำเนินการ":
+                        if st.button("✅ แก้ไขเสร็จสิ้น", key=f"app_upd_{r[0]}"):
+                            c.execute("UPDATE repairs SET status = 'เสร็จสิ้น' WHERE id = ?", (r[0],))
+                            conn.commit()
+                            st.rerun()
             conn.close()
         else:
-            st.warning("คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (เฉพาะ Admin เท่านั้น)")
+            st.error("ขออภัย คุณไม่มีสิทธิ์เข้าถึงหน้านี้")
 
     if st.sidebar.button("Logout"):
         del st.session_state.user
