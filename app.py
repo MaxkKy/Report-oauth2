@@ -8,7 +8,7 @@ import os
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app", "http://localhost:8501") # เพิ่มบรรทัดนี้
+REDIRECT_URI = "https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app"
 ADMIN_EMAIL = "aphisit.k65@rsu.ac.th"  # เปลี่ยนเป็นอีเมลของคุณเพื่อใช้สิทธิ์ Admin
 
 SCOPE = "email profile https://www.googleapis.com/auth/gmail.send"
@@ -46,7 +46,7 @@ def send_email_via_gmail_api(access_token, room, message_content):
 if "user" not in st.session_state:
     st.title("ระบบแจ้งซ่อมห้องเรียน")
     result = oauth.authorize_button(name="Login with Google", icon="https://www.google.com/favicon.ico", 
-                                    redirect_uri="redirect_uri=REDIRECT_URI", scope=SCOPE)
+                                    redirect_uri=REDIRECT_URI, scope=SCOPE)
     if result:
         st.session_state.user = result
         st.rerun()
