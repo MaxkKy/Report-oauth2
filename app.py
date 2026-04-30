@@ -9,9 +9,9 @@ import os
 # --- 1. ตั้งค่าพื้นฐาน ---
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# ดึง REDIRECT_URI จาก env หรือใช้ค่าคงที่ที่คุณตั้งไว้
-REDIRECT_URI = "https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app"
-ADMIN_EMAIL = "aphisit.k65@rsu.ac.th" 
+# แก้ไขให้เป็น URL สตริงธรรมดา
+REDIRECT_URI = "https://report-oapp2-krppq6mmldybttknuwrfed.streamlit.app" 
+ADMIN_EMAIL = "aphisit.k65@rsu.ac.th"  
 
 SCOPE = "email profile https://www.googleapis.com/auth/gmail.send"
 
@@ -47,6 +47,7 @@ def send_email_via_gmail_api(access_token, room, message_content):
 # --- 4. หน้าจอหลัก ---
 if "user" not in st.session_state:
     st.title("ระบบแจ้งซ่อมห้องเรียน")
+    # แก้ไขจุดที่ผิด: เอา "redirect_uri=" ออก
     result = oauth.authorize_button(name="Login with Google", icon="https://www.google.com/favicon.ico", 
                                     redirect_uri=REDIRECT_URI, scope=SCOPE)
     if result:
@@ -60,10 +61,9 @@ else:
     
     st.sidebar.write(f"Logged in: **{user_email}**")
     
-    # --- ระบบ Tabs (ปรับเหลือ 2 แท็บ) ---
-    tabs = st.tabs(["📢 แจ้งซ่อม", "📋 สถานะงานของฉัน"])
+    # --- ระบบ Tabs ---
+    tabs = st.tabs(["📢 แจ้งซ่อม", "📋 สถานะงานของฉัน", "🛠️ แอดมิน (จัดการงาน)"])
     
-    # แท็บ 1: แจ้งซ่อม
     with tabs[0]:
         st.header("แบบฟอร์มแจ้งซ่อม")
         with st.form("repair_form"):
@@ -71,33 +71,44 @@ else:
             device = st.selectbox("เลือกอุปกรณ์", ["Monitor", "แอร์", "เครื่อง PC", "อื่นๆ"])
             detail = st.text_area("รายละเอียดปัญหา")
             if st.form_submit_button("ส่งรายงาน"):
-                # บันทึกลง Database
                 conn = sqlite3.connect('repairs.db')
                 c = conn.cursor()
                 c.execute("INSERT INTO repairs (user_email, room, device, detail, status) VALUES (?,?,?,?,?)",
                           (user_email, room, device, detail, "รอดำเนินการ"))
                 conn.commit()
                 conn.close()
-                # ส่งอีเมล
                 content = f"ผู้แจ้ง: {user_email}\nห้อง: {room}\nอุปกรณ์: {device}\nรายละเอียด: {detail}"
                 send_email_via_gmail_api(token, room, content)
                 st.success("บันทึกข้อมูลและส่งอีเมลแจ้งแอดมินแล้ว!")
 
-    # แท็บ 2: ดูสถานะของตัวเอง
     with tabs[1]:
         st.header("สถานะรายการของคุณ")
         conn = sqlite3.connect('repairs.db')
         c = conn.cursor()
         c.execute("SELECT room, device, status FROM repairs WHERE user_email = ? ORDER BY id DESC", (user_email,))
-        data = c.fetchall()
-        if data:
-            for row in data:
-                st.write(f"ห้อง: {row[0]} | อุปกรณ์: {row[1]} | สถานะ: **{row[2]}**")
-        else:
-            st.info("คุณยังไม่มีประวัติการแจ้งซ่อม")
+        for row in c.fetchall():
+            st.write(f"ห้อง: {row[0]} | อุปกรณ์: {row[1]} | สถานะ: **{row[2]}**")
         conn.close()
 
-    # ปุ่ม Logout
+    with tabs[2]:
+        if user_email == ADMIN_EMAIL:
+            st.header("จัดการรายการแจ้งซ่อม (Admin)")
+            conn = sqlite3.connect('repairs.db')
+            c = conn.cursor()
+            c.execute("SELECT id, user_email, room, device, status FROM repairs ORDER BY id DESC")
+            repairs = c.fetchall()
+            for r in repairs:
+                col1, col2 = st.columns([3, 1])
+                col1.write(f"**ห้อง:** {r[2]} | **อุปกร์:** {r[3]} | **สถานะ:** {r[4]}")
+                if r[4] == "รอดำเนินการ":
+                    if col2.button("✅ เสร็จสิ้น", key=f"upd_{r[0]}"):
+                        c.execute("UPDATE repairs SET status = 'เสร็จสิ้น' WHERE id = ?", (r[0],))
+                        conn.commit()
+                        st.rerun()
+            conn.close()
+        else:
+            st.warning("คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (เฉพาะ Admin เท่านั้น)")
+
     if st.sidebar.button("Logout"):
         del st.session_state.user
         st.rerun()
