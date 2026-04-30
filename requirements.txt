@@ -2,3 +2,4 @@ streamlit
 streamlit-oauth
 python-dotenv
 google-auth
+qrcode
